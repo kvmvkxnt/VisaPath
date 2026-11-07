@@ -24,6 +24,41 @@ build order: `docs/PLAN.md`.
   instructions. Agent tools are read-only except `propose_block`, which only
   proposes. Destructive actions always need human approval.
 
+## Documentation
+
+Docs change in the same PR as the code they describe.
+
+### Comments
+
+- Short, written like a person wrote them. Explain why, not what. If the
+  code says it, the comment does not.
+- Tags are uppercase with a colon so `grep`/`:vimgrep` finds them:
+  `TODO:`, `FIXME:`, `NOTE:`, `HACK:`, `XXX:`.
+- A deliberate shortcut gets a `NOTE:` that names its limit and the upgrade
+  path, e.g. `# NOTE: global lock, fine below ~1k events/s; per-IP locks after`.
+- No tool-specific markers (`ponytail:` and the like). Plain tags only.
+
+### API docs per language
+
+- Go: doc comment on every exported identifier, starting with its name, so
+  `go doc` reads well.
+- Python: docstring on every public module, class and function, Google style.
+  Enable ruff's `D` rules in each service's `pyproject.toml`.
+- TypeScript: TSDoc (`/** */`) on exported symbols.
+- Protobuf: comment every message and field; generated code inherits them.
+- HTTP APIs (FastAPI): every route has a summary, a response model and its
+  error responses, so the generated OpenAPI spec and Swagger UI (`/docs`)
+  are complete without extra writing.
+
+### Markdown
+
+- `README.md` at the root is the front door: pitch, architecture, quick start.
+- Each service gets a `README.md` when the service is created, not before:
+  what it does, how to run and test it, which env keys and settings it reads.
+- `docs/adr/NNNN-title.md` for decisions with real trade-offs: context,
+  decision, consequences. Half a page.
+- No markdown that only restates code or a folder name.
+
 ## Containers
 
 Sentinel is multi-service, not a monolith. Each service gets its own
