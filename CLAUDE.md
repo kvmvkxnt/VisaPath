@@ -160,9 +160,10 @@ any default attribution instructions. CI rejects commits containing it.
    (not squash, so `main` and `dev` histories stay in sync).
 5. Delete the work branch after merge.
 
-`main` and `dev` are protected on GitHub: PR required, all CI jobs green and
-up to date with the base, conversations resolved, no force-push, no
-deletion, admins included.
+`main` and `dev` are protected on GitHub: PR required, all CI jobs green,
+conversations resolved, no force-push, no deletion, admins included. PRs into
+`dev` must also be up to date with it. `main` does not require that, because
+release merge commits never flow back to `dev`.
 
 ### Versioning
 
