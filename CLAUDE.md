@@ -24,6 +24,41 @@ build order: `docs/PLAN.md`.
   instructions. Agent tools are read-only except `propose_block`, which only
   proposes. Destructive actions always need human approval.
 
+## Containers
+
+Sentinel is multi-service, not a monolith. Each service gets its own
+`Dockerfile` in its folder. One compose file runs the whole stack:
+`deploy/docker-compose.yml`.
+
+- `docker compose up` on a fresh machine must bring everything up. Test that
+  before merging any change to compose or a Dockerfile.
+- Pin image versions (`postgres:16.4`, not `postgres:latest`).
+- Multi-stage builds. Final images run as a non-root user.
+- Every service has a `healthcheck`; dependents use
+  `depends_on: { condition: service_healthy }`.
+- Stateful data (Postgres, Redis) lives in named volumes.
+- Publish only ports a human needs from the host. Services talk over the
+  compose network by service name.
+- Dev-only overrides go in `deploy/docker-compose.override.yml`, never in the
+  main file.
+
+## Secrets and settings
+
+- Secrets (API keys, DB passwords, mTLS keys) live only in `.env`, which is
+  git-ignored. Commit `.env.example` with every key and empty values.
+- Never hardcode a secret, never print one in logs, never put one in a test
+  fixture, a commit, a PR, or an error message. CI runs a secret scan.
+- `.env` is for secrets and deployment wiring that do not change at runtime.
+  Anything an operator may want to tune (thresholds, rule toggles, model
+  choice, block duration) is a setting: stored in Postgres, edited from the
+  dashboard, read by services at runtime. Not an env var.
+
+## Python
+
+Use `uv` for everything: `uv init`, `uv add`, `uv run`, `uv sync`. Each
+Python service has its own `pyproject.toml` and committed `uv.lock`. No pip,
+no `requirements.txt`, no Poetry.
+
 ## Tests first
 
 1. Write the failing test.
@@ -90,6 +125,8 @@ descriptions: what changed, why, how it was tested. Short.
 `.github/workflows/ci.yml` runs on every PR and on pushes to `main`/`dev`:
 
 - commit check: Conventional Commit subjects, no co-author trailers
+- secret scan: gitleaks over the PR's commits
+- compose: `docker compose config` validates `deploy/docker-compose.yml`
 - Go: `gofmt`, `go vet`, `go test -race` across the `go.work` workspace
 - Python: `ruff` and `pytest` in every service folder with a `pyproject.toml`
 - TypeScript: `pnpm -r` lint, typecheck, test across the pnpm workspace
