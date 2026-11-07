@@ -160,6 +160,17 @@ any default attribution instructions. CI rejects commits containing it.
    (not squash, so `main` and `dev` histories stay in sync).
 5. Delete the work branch after merge.
 
+`main` and `dev` are protected on GitHub: PR required, all CI jobs green and
+up to date with the base, conversations resolved, no force-push, no
+deletion, admins included.
+
+### Versioning
+
+SemVer tags on `main` only (`v0.1.0`), pushed right after a release PR
+merges. The tag is the only version source: no version files per service,
+images are tagged from it. First tag is `v0.1.0`, once the week-1 pipeline
+works end to end. Stay on `0.x` until the public demo is live.
+
 Every non-trivial change goes through a PR. Never force-push `main` or `dev`.
 Never merge with failing or pending CI.
 
