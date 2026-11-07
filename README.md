@@ -16,9 +16,9 @@ incident and propose a fix that a human approves before it runs.
                 │                          detector (Python): rules + Isolation Forest
                 │                                          │ alerts
                 │                                          v
-                └──── web (Nuxt) <── gateway (WebSocket) <── ai (Python): RAG + investigator agent
-                         ^                                   ^
-                       human                     mcp (TypeScript) <── Claude / Cursor
+                └──── web (Nuxt, live WebSocket) <── ai (Python): RAG + investigator agent
+                         ^                            ^
+                       human              mcp (TypeScript) <── Claude / Cursor
 ```
 
 1. The agent tails Nginx, SSH, Xray and Docker logs and ships normalized events.
@@ -47,14 +47,17 @@ instructions:
 | `detector/` | Python     | Rules engine and Isolation Forest |
 | `ai/`       | Python     | FastAPI, RAG pipeline, LangGraph investigator |
 | `mcp/`      | TypeScript | MCP server exposing Sentinel tools to Claude |
-| `gateway/`  | TypeScript | WebSocket fan-out of live alerts |
-| `web/`      | Vue (Nuxt) | Dashboard: alerts, timelines, approvals |
+| `web/`      | Vue (Nuxt) | Dashboard: live alerts, timelines, approvals, settings |
 | `evals/`    |            | Golden questions and injection tests |
 | `deploy/`   |            | Docker Compose and reverse proxy |
-| `docs/`     |            | Plan and architecture decision records |
+| `docs/`     |            | Plan and architecture decision records (`docs/adr/`) |
 
 ## Contributing
 
 Branching, commit style, tests-first and documentation rules live in
 [CLAUDE.md](CLAUDE.md). In short: branch from `dev`, write the test first,
 open a PR, merge when CI is green.
+
+## License
+
+[MIT](LICENSE)
