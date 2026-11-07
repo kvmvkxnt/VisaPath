@@ -5,6 +5,19 @@ suspicious activity (rules + Isolation Forest), and an AI agent investigates
 alerts and proposes fixes that a human must approve. Full architecture and
 build order: `docs/PLAN.md`.
 
+## Session handoff
+
+`HANDOFF.md` in the repo root carries state between sessions. It is
+git-ignored: it is a working log for whoever picks up next, not project docs.
+
+- Read it at the start of every session, before anything else.
+- Update it after each finished task, after any mistake, and before stopping.
+- Keep it current, not a diary: replace stale state, keep the mistakes list.
+- Sections: current state (branch, open PRs, what is in progress, next step),
+  critical moments and decisions not yet in an ADR, files touched recently,
+  mistakes and how they were resolved.
+- Durable decisions go into `docs/adr/`, not here.
+
 ## Skills (every session)
 
 - Start every session by invoking `/caveman:caveman` and `/ponytail:ponytail`.

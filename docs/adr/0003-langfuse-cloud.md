@@ -10,7 +10,7 @@ worker containers, which is a lot to run on a single VPS.
 
 ## Decision
 
-Use Langfuse Cloud (EU region, free tier). Services read `LANGFUSE_HOST`,
+Use Langfuse Cloud (EU region, free tier). Services read `LANGFUSE_BASE_URL`,
 `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` from `.env`.
 
 ## Consequences
@@ -19,4 +19,4 @@ Use Langfuse Cloud (EU region, free tier). Services read `LANGFUSE_HOST`,
 - Prompts and log excerpts sent to the model leave the server and are stored
   by Langfuse. Acceptable for a demo; revisit before monitoring anyone
   else's servers.
-- Switching to self-hosted later only changes `LANGFUSE_HOST`.
+- Switching to self-hosted later only changes `LANGFUSE_BASE_URL`.
