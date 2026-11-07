@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+
+jobs:
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Conventional subjects, no co-author trailers
+        run: |
+          range="origin/${{ github.base_ref }}..${{ github.event.pull_request.head.sha }}"
+          bad=0
+          for sha in $(git rev-list --no-merges "$range"); do
+            subject=$(git log -1 --format=%s "$sha")
+            if ! echo "$subject" | grep -Eq '^(feat|fix|test|refactor|perf|docs|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: .+'; then
+              echo "::error::$sha bad subject: $subject"; bad=1
+            fi
+            if git log -1 --format=%B "$sha" | grep -Eiq '^co-authored-by:|generated with \[?claude'; then
+              echo "::error::$sha contains AI attribution"; bad=1
+            fi
+          done
+          exit $bad
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        if: hashFiles('go.work') != ''
+        with:
+          go-version-file: go.work
+      - name: gofmt
+        if: hashFiles('go.work') != ''
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: vet and test
+        if: hashFiles('go.work') != ''
+        run: |
+          pkgs=$(go list -f '{{.Dir}}/...' -m)
+          go vet $pkgs
+          go test -race $pkgs
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        if: hashFiles('*/pyproject.toml') != ''
+      - name: ruff and pytest per service
+        if: hashFiles('*/pyproject.toml') != ''
+        run: |
+          for f in */pyproject.toml; do
+            d=$(dirname "$f")
+            echo "::group::$d"
+            (cd "$d" && uvx ruff check . && uvx ruff format --check . && uv run pytest)
+            echo "::endgroup::"
+          done
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        if: hashFiles('pnpm-workspace.yaml') != ''
+      - uses: actions/setup-node@v4
+        if: hashFiles('pnpm-workspace.yaml') != ''
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: lint, typecheck, test
+        if: hashFiles('pnpm-workspace.yaml') != ''
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm -r --if-present lint
+          pnpm -r --if-present typecheck
+          pnpm -r --if-present test
