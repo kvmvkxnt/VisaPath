@@ -29,6 +29,26 @@ jobs:
           done
           exit $bad
 
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: validate compose
+        if: hashFiles('deploy/docker-compose.yml') != ''
+        run: |
+          [ -f .env.example ] && cp .env.example .env
+          docker compose -f deploy/docker-compose.yml config -q
+
   go:
     runs-on: ubuntu-latest
     steps:
