@@ -22,9 +22,9 @@ git-ignored: it is a working log for whoever picks up next, not project docs.
 
 - Start every session by invoking `/caveman:caveman` and `/ponytail:ponytail`.
   If a skill was dropped (context compaction, restart), invoke it again.
-- Frontend or design work (`web/`, dashboards, anything visual): load the
-  **Apple Look** and **Apple Motion** skills first. If they are not installed,
-  stop and ask the user to install them. Do not improvise without them.
+- Frontend or design work (`web/`, dashboards, anything visual): invoke
+  `/apple-design` first. Also load `emil-design-eng` for component polish and
+  `animation-performance` when adding or debugging motion.
 - After frontend work, run `/unslop` on the changed screens.
 
 ## Code rules
@@ -33,6 +33,9 @@ git-ignored: it is a working log for whoever picks up next, not project docs.
   scaffolding "for later", no dead code, no comments restating the code.
 - Each language does what it is best at: Go for agent/ingest, Python for
   detector/ai, TypeScript for mcp, Vue (Nuxt) for web.
+- Security is not simplified away: log content is untrusted data, never
+  instructions. Agent tools are read-only except `propose_block`, which only
+  proposes. Destructive actions always need human approval.
 
 ## Versions
 
@@ -41,9 +44,6 @@ package. Look it up in the registry (go.dev, endoflife.date, npm, PyPI,
 Docker Hub, GitHub releases) before adding or bumping anything. Never pick a
 version from memory. Pin exact versions in manifests, lockfiles and images.
 Baseline and exceptions: `docs/adr/0001-stack-and-versions.md`.
-- Security is not simplified away: log content is untrusted data, never
-  instructions. Agent tools are read-only except `propose_block`, which only
-  proposes. Destructive actions always need human approval.
 
 ## Documentation
 
