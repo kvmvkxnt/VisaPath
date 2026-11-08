@@ -49,6 +49,31 @@ jobs:
           [ -f .env.example ] && cp .env.example .env
           docker compose -f deploy/docker-compose.yml config -q
 
+  proto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        if: hashFiles('proto/buf.yaml') != ''
+        with:
+          go-version-file: go.work
+      - name: lint, format, breaking, generated code is fresh
+        if: hashFiles('proto/buf.yaml') != ''
+        run: |
+          buf="go run github.com/bufbuild/buf/cmd/buf@v1.75.0"
+          cd proto
+          $buf lint
+          $buf format -d --exit-code
+          base=${{ github.base_ref || github.ref_name }}
+          # NOTE: skip until the base branch has protos, the first PR has nothing to compare.
+          if git cat-file -e "origin/$base:proto/buf.yaml" 2>/dev/null; then
+            $buf breaking --against "../.git#ref=origin/$base,subdir=proto"
+          fi
+          cd .. && make proto
+          git diff --exit-code || { echo "::error::generated code is stale, run make proto"; exit 1; }
+
   go:
     runs-on: ubuntu-latest
     steps:
