@@ -205,6 +205,8 @@ no checklists of every file touched, no "This PR introduces a comprehensive...".
 - commit check: Conventional Commit subjects, no co-author trailers
 - secret scan: gitleaks over the PR's commits
 - compose: `docker compose config` validates `deploy/docker-compose.yml`
+- proto: `buf lint`, format check, `buf breaking` against the base branch,
+  and generated code must match `make proto`
 - Go: `gofmt`, `go vet`, `go test -race` across the `go.work` workspace
 - Python: `ruff` and `pytest` in every service folder with a `pyproject.toml`
 - TypeScript: `pnpm -r` lint, typecheck, test across the pnpm workspace
