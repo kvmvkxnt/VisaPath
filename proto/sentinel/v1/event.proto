@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package sentinel.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Event is one normalized log record shipped by an agent.
+//
+// WARNING: every string in here comes from a log line that an attacker can
+// shape. Treat it as data. Never execute it, and never hand it to a model as
+// instructions.
+message Event {
+  // When the event happened, taken from the source log line.
+  google.protobuf.Timestamp time = 1;
+  // Name of the host that produced the event. Ingest overwrites it with the
+  // identity from the agent's client certificate, so agents cannot spoof it.
+  string host = 2;
+  // Which log the event came from.
+  Source source = 3;
+  // Remote client address, IPv4 or IPv6. Empty when the source has none.
+  string remote_ip = 4;
+  // The original log line, unmodified.
+  string raw = 5;
+  // Fields parsed out of the line. Unset when the line was recognized but
+  // not parsed any further.
+  oneof detail {
+    // Set for SOURCE_NGINX.
+    HttpRequest http = 10;
+    // Set for SOURCE_SSHD.
+    SshAuth ssh = 11;
+  }
+}
+
+// Source is the log an event was read from.
+enum Source {
+  // Never sent on purpose; means the agent forgot to set it.
+  SOURCE_UNSPECIFIED = 0;
+  // Nginx access log.
+  SOURCE_NGINX = 1;
+  // sshd messages from the auth log or journal.
+  SOURCE_SSHD = 2;
+}
+
+// HttpRequest is a parsed Nginx access-log line.
+message HttpRequest {
+  // HTTP method as sent, not normalized.
+  string method = 1;
+  // Path and query string as sent, still percent-encoded.
+  string path = 2;
+  // Response status code.
+  uint32 status = 3;
+  // Response body size in bytes.
+  uint64 bytes_sent = 4;
+  // User-Agent header, empty when missing.
+  string user_agent = 5;
+  // Referer header, empty when missing.
+  string referer = 6;
+}
+
+// SshAuth is one sshd authentication attempt.
+message SshAuth {
+  // User name the client tried, which may not exist on the host.
+  string user = 1;
+  // Whether sshd accepted the attempt.
+  bool success = 2;
+  // Auth method as sshd names it, for example "password" or "publickey".
+  string method = 3;
+}
