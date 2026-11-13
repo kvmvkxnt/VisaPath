@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kvmvkxnt/sentinel/agent/internal/docker"
 	"github.com/kvmvkxnt/sentinel/agent/internal/parse"
 	"github.com/kvmvkxnt/sentinel/agent/internal/ship"
 	"github.com/kvmvkxnt/sentinel/agent/internal/tail"
@@ -59,8 +60,11 @@ func run() error {
 	if p := os.Getenv("AGENT_XRAY_LOG"); p != "" {
 		logs[p] = parse.Xray
 	}
-	if len(logs) == 0 {
-		return errors.New("set at least one of AGENT_NGINX_LOG, AGENT_SSH_LOG, AGENT_XRAY_LOG")
+	// Opt-in: reading the Docker socket needs the docker group, which is
+	// close to root (ADR 0004).
+	dockerSocket := os.Getenv("AGENT_DOCKER_SOCKET")
+	if len(logs) == 0 && dockerSocket == "" {
+		return errors.New("set at least one of AGENT_NGINX_LOG, AGENT_SSH_LOG, AGENT_XRAY_LOG, AGENT_DOCKER_SOCKET")
 	}
 
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
@@ -86,6 +90,12 @@ func run() error {
 	defer conn.Close()
 
 	events := make(chan *sentinelv1.Event)
+	send := func(e *sentinelv1.Event) {
+		select {
+		case events <- e:
+		case <-ctx.Done():
+		}
+	}
 	var wg sync.WaitGroup
 	errs := make(chan error, len(logs))
 	for path, parser := range logs {
@@ -93,15 +103,17 @@ func run() error {
 		wg.Go(func() {
 			errs <- tail.Follow(ctx, path, 500*time.Millisecond, func(line string) {
 				if e, ok := parser(line, time.Now()); ok {
-					select {
-					case events <- e:
-					case <-ctx.Done():
-					}
+					send(e)
 				}
 			})
 			// One dead tailer stops the agent; systemd restarts it.
 			stop()
 		})
+	}
+
+	if dockerSocket != "" {
+		slog.Info("following docker events", "socket", dockerSocket)
+		wg.Go(func() { docker.Follow(ctx, dockerSocket, 5*time.Second, send) })
 	}
 
 	ship.Shipper{

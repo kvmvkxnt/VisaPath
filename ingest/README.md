@@ -13,7 +13,8 @@ event with the protobuf bytes in the field `pb` (ADR 0005).
   transaction commits only after Redis accepted the batch, so resends while
   Redis is down leave no duplicate rows.
 - `InvalidArgument` means the batch can never be accepted (bad IP, missing
-  time or payload, more than 1000 events); the agent drops it. Any other
+  time or payload, a missing address on anything but a docker event, more
+  than 1000 events); the agent drops it. Any other
   error is safe to retry.
 - Stream consumers see at-least-once delivery: a commit that fails after a
   successful publish leads to a second publish on resend.

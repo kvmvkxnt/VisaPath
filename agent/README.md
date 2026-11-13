@@ -21,6 +21,24 @@ client and can contain a fake `from 1.2.3.4 port 5`.
 
 Hosts that only log to journald (no `auth.log`) are not covered yet.
 
+## Docker events
+
+`internal/docker` streams container lifecycle events (`create`, `start`,
+`die`, `oom`, `kill`, `destroy`) from the Docker socket and reconnects
+when the daemon restarts. `exec` events are skipped: every healthcheck is
+one.
+
+It is off unless `AGENT_DOCKER_SOCKET` is set, because reading the socket
+needs the `docker` group, which is close to root (ADR 0004). The systemd
+unit does not allow it by default; enable it with a drop-in
+(`systemctl edit sentinel-agent`):
+
+```ini
+[Service]
+SupplementaryGroups=adm docker
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+```
+
 ## Tailer
 
 `internal/tail.Follow` is `tail -F` in stdlib Go: it polls, starts at the
@@ -50,8 +68,9 @@ Read from the environment (a systemd `EnvironmentFile` on a real host):
 | `AGENT_NGINX_LOG`   | Nginx access log to follow. Optional. |
 | `AGENT_SSH_LOG`     | sshd auth log to follow, e.g. `/var/log/auth.log`. Optional. |
 | `AGENT_XRAY_LOG`    | Xray access log to follow, e.g. `/var/log/xray/access.log`. Optional. |
+| `AGENT_DOCKER_SOCKET` | Docker socket for container events, e.g. `/var/run/docker.sock`. Optional, see above. |
 
-At least one log must be set.
+At least one source must be set.
 
 ## Install on a host
 

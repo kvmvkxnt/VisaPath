@@ -90,10 +90,6 @@ func toRow(e *sentinelv1.Event) ([]any, error) {
 	if err := e.GetTime().CheckValid(); err != nil {
 		return nil, err
 	}
-	ip, err := netip.ParseAddr(e.GetSrcIp())
-	if err != nil {
-		return nil, errors.New("src_ip is not an IP address")
-	}
 	var kind string
 	var payload proto.Message
 	switch p := e.GetPayload().(type) {
@@ -103,8 +99,20 @@ func toRow(e *sentinelv1.Event) ([]any, error) {
 		kind, payload = "ssh", p.Ssh
 	case *sentinelv1.Event_Xray:
 		kind, payload = "xray", p.Xray
+	case *sentinelv1.Event_Docker:
+		kind, payload = "docker", p.Docker
 	default:
 		return nil, errors.New("payload is missing or unknown")
+	}
+	// Only docker events may come without a remote address.
+	var ip *netip.Addr
+	if kind != "docker" || e.GetSrcIp() != "" {
+		parsed, err := netip.ParseAddr(e.GetSrcIp())
+		if err != nil {
+			return nil, errors.New("src_ip is not an IP address")
+		}
+		parsed = parsed.Unmap()
+		ip = &parsed
 	}
 	data, err := payloadJSON.Marshal(withoutNUL(payload))
 	if err != nil {

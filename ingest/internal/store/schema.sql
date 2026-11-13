@@ -17,3 +17,6 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS events_src_ip_time_idx ON events (src_ip, time DESC);
 CREATE INDEX IF NOT EXISTS events_time_idx ON events (time DESC);
+
+-- Docker events have no remote address.
+ALTER TABLE events ALTER COLUMN src_ip DROP NOT NULL;
