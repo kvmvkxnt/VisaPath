@@ -146,6 +146,7 @@ type Event struct {
 	// with the name in the agent's mTLS client certificate.
 	Host string `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
 	// Remote address the activity came from, IPv4 or IPv6 in text form.
+	// Empty only for events that have no remote party (docker).
 	SrcIp string `protobuf:"bytes,3,opt,name=src_ip,json=srcIp,proto3" json:"src_ip,omitempty"`
 	// What happened, by log source.
 	//
@@ -154,6 +155,7 @@ type Event struct {
 	//	*Event_Nginx
 	//	*Event_Ssh
 	//	*Event_Xray
+	//	*Event_Docker
 	Payload       isEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -244,6 +246,15 @@ func (x *Event) GetXray() *XrayAccess {
 	return nil
 }
 
+func (x *Event) GetDocker() *DockerEvent {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_Docker); ok {
+			return x.Docker
+		}
+	}
+	return nil
+}
+
 type isEvent_Payload interface {
 	isEvent_Payload()
 }
@@ -263,11 +274,18 @@ type Event_Xray struct {
 	Xray *XrayAccess `protobuf:"bytes,12,opt,name=xray,proto3,oneof"`
 }
 
+type Event_Docker struct {
+	// One container lifecycle event from the Docker daemon.
+	Docker *DockerEvent `protobuf:"bytes,13,opt,name=docker,proto3,oneof"`
+}
+
 func (*Event_Nginx) isEvent_Payload() {}
 
 func (*Event_Ssh) isEvent_Payload() {}
 
 func (*Event_Xray) isEvent_Payload() {}
+
+func (*Event_Docker) isEvent_Payload() {}
 
 // NginxAccess is one HTTP request as Nginx logged it.
 type NginxAccess struct {
@@ -545,11 +563,95 @@ func (x *XrayAccess) GetReason() string {
 	return ""
 }
 
+// DockerEvent is one container lifecycle event from the Docker daemon on
+// the host. It has no remote address.
+type DockerEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What happened, in Docker's words: "create", "start", "die", "oom",
+	// "kill" or "destroy".
+	Action string `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"`
+	// Full container id.
+	ContainerId string `protobuf:"bytes,2,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	// Container name. Set by whoever started the container.
+	ContainerName string `protobuf:"bytes,3,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	// Image the container runs, as given when it was created.
+	Image string `protobuf:"bytes,4,opt,name=image,proto3" json:"image,omitempty"`
+	// Exit code, for "die" events. Zero otherwise.
+	ExitCode      int32 `protobuf:"varint,5,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DockerEvent) Reset() {
+	*x = DockerEvent{}
+	mi := &file_sentinel_v1_event_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DockerEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DockerEvent) ProtoMessage() {}
+
+func (x *DockerEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_sentinel_v1_event_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DockerEvent.ProtoReflect.Descriptor instead.
+func (*DockerEvent) Descriptor() ([]byte, []int) {
+	return file_sentinel_v1_event_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *DockerEvent) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *DockerEvent) GetContainerId() string {
+	if x != nil {
+		return x.ContainerId
+	}
+	return ""
+}
+
+func (x *DockerEvent) GetContainerName() string {
+	if x != nil {
+		return x.ContainerName
+	}
+	return ""
+}
+
+func (x *DockerEvent) GetImage() string {
+	if x != nil {
+		return x.Image
+	}
+	return ""
+}
+
+func (x *DockerEvent) GetExitCode() int32 {
+	if x != nil {
+		return x.ExitCode
+	}
+	return 0
+}
+
 var File_sentinel_v1_event_proto protoreflect.FileDescriptor
 
 const file_sentinel_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x17sentinel/v1/event.proto\x12\vsentinel.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf8\x01\n" +
+	"\x17sentinel/v1/event.proto\x12\vsentinel.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xac\x02\n" +
 	"\x05Event\x12.\n" +
 	"\x04time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x15\n" +
@@ -557,7 +659,8 @@ const file_sentinel_v1_event_proto_rawDesc = "" +
 	"\x05nginx\x18\n" +
 	" \x01(\v2\x18.sentinel.v1.NginxAccessH\x00R\x05nginx\x12(\n" +
 	"\x03ssh\x18\v \x01(\v2\x14.sentinel.v1.SshAuthH\x00R\x03ssh\x12-\n" +
-	"\x04xray\x18\f \x01(\v2\x17.sentinel.v1.XrayAccessH\x00R\x04xrayB\t\n" +
+	"\x04xray\x18\f \x01(\v2\x17.sentinel.v1.XrayAccessH\x00R\x04xray\x122\n" +
+	"\x06docker\x18\r \x01(\v2\x18.sentinel.v1.DockerEventH\x00R\x06dockerB\t\n" +
 	"\apayload\"\xc5\x01\n" +
 	"\vNginxAccess\x12\x16\n" +
 	"\x06method\x18\x01 \x01(\tR\x06method\x12\x12\n" +
@@ -591,7 +694,13 @@ const file_sentinel_v1_event_proto_rawDesc = "" +
 	"\x06Status\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fSTATUS_ACCEPTED\x10\x01\x12\x13\n" +
-	"\x0fSTATUS_REJECTED\x10\x02B\xac\x01\n" +
+	"\x0fSTATUS_REJECTED\x10\x02\"\xa2\x01\n" +
+	"\vDockerEvent\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action\x12!\n" +
+	"\fcontainer_id\x18\x02 \x01(\tR\vcontainerId\x12%\n" +
+	"\x0econtainer_name\x18\x03 \x01(\tR\rcontainerName\x12\x14\n" +
+	"\x05image\x18\x04 \x01(\tR\x05image\x12\x1b\n" +
+	"\texit_code\x18\x05 \x01(\x05R\bexitCodeB\xac\x01\n" +
 	"\x0fcom.sentinel.v1B\n" +
 	"EventProtoP\x01Z@github.com/kvmvkxnt/sentinel/proto/gen/go/sentinel/v1;sentinelv1\xa2\x02\x03SXX\xaa\x02\vSentinel.V1\xca\x02\vSentinel\\V1\xe2\x02\x17Sentinel\\V1\\GPBMetadata\xea\x02\fSentinel::V1b\x06proto3"
 
@@ -608,7 +717,7 @@ func file_sentinel_v1_event_proto_rawDescGZIP() []byte {
 }
 
 var file_sentinel_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_sentinel_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_sentinel_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_sentinel_v1_event_proto_goTypes = []any{
 	(SshAuth_Outcome)(0),          // 0: sentinel.v1.SshAuth.Outcome
 	(XrayAccess_Status)(0),        // 1: sentinel.v1.XrayAccess.Status
@@ -616,20 +725,22 @@ var file_sentinel_v1_event_proto_goTypes = []any{
 	(*NginxAccess)(nil),           // 3: sentinel.v1.NginxAccess
 	(*SshAuth)(nil),               // 4: sentinel.v1.SshAuth
 	(*XrayAccess)(nil),            // 5: sentinel.v1.XrayAccess
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*DockerEvent)(nil),           // 6: sentinel.v1.DockerEvent
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_sentinel_v1_event_proto_depIdxs = []int32{
-	6, // 0: sentinel.v1.Event.time:type_name -> google.protobuf.Timestamp
+	7, // 0: sentinel.v1.Event.time:type_name -> google.protobuf.Timestamp
 	3, // 1: sentinel.v1.Event.nginx:type_name -> sentinel.v1.NginxAccess
 	4, // 2: sentinel.v1.Event.ssh:type_name -> sentinel.v1.SshAuth
 	5, // 3: sentinel.v1.Event.xray:type_name -> sentinel.v1.XrayAccess
-	0, // 4: sentinel.v1.SshAuth.outcome:type_name -> sentinel.v1.SshAuth.Outcome
-	1, // 5: sentinel.v1.XrayAccess.status:type_name -> sentinel.v1.XrayAccess.Status
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	6, // 4: sentinel.v1.Event.docker:type_name -> sentinel.v1.DockerEvent
+	0, // 5: sentinel.v1.SshAuth.outcome:type_name -> sentinel.v1.SshAuth.Outcome
+	1, // 6: sentinel.v1.XrayAccess.status:type_name -> sentinel.v1.XrayAccess.Status
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_sentinel_v1_event_proto_init() }
@@ -641,6 +752,7 @@ func file_sentinel_v1_event_proto_init() {
 		(*Event_Nginx)(nil),
 		(*Event_Ssh)(nil),
 		(*Event_Xray)(nil),
+		(*Event_Docker)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -648,7 +760,7 @@ func file_sentinel_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sentinel_v1_event_proto_rawDesc), len(file_sentinel_v1_event_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

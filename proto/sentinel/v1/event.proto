@@ -16,6 +16,7 @@ message Event {
   // with the name in the agent's mTLS client certificate.
   string host = 2;
   // Remote address the activity came from, IPv4 or IPv6 in text form.
+  // Empty only for events that have no remote party (docker).
   string src_ip = 3;
   // What happened, by log source.
   oneof payload {
@@ -25,6 +26,8 @@ message Event {
     SshAuth ssh = 11;
     // One proxied connection from the Xray access log.
     XrayAccess xray = 12;
+    // One container lifecycle event from the Docker daemon.
+    DockerEvent docker = 13;
   }
 }
 
@@ -100,4 +103,20 @@ message XrayAccess {
   string email = 6;
   // Why a connection was rejected, as logged. May quote client input.
   string reason = 7;
+}
+
+// DockerEvent is one container lifecycle event from the Docker daemon on
+// the host. It has no remote address.
+message DockerEvent {
+  // What happened, in Docker's words: "create", "start", "die", "oom",
+  // "kill" or "destroy".
+  string action = 1;
+  // Full container id.
+  string container_id = 2;
+  // Container name. Set by whoever started the container.
+  string container_name = 3;
+  // Image the container runs, as given when it was created.
+  string image = 4;
+  // Exit code, for "die" events. Zero otherwise.
+  int32 exit_code = 5;
 }
