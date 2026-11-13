@@ -86,8 +86,15 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 2s
           --health-timeout 5s --health-retries 15
+      redis:
+        image: redis:8.10.3-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s
+          --health-timeout 5s --health-retries 15
     env:
       SENTINEL_TEST_POSTGRES_URL: postgres://postgres:test@localhost:5432/postgres
+      SENTINEL_TEST_REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
