@@ -27,8 +27,8 @@ func Nginx(line string, _ time.Time) (*sentinelv1.Event, bool) {
 	if m == nil {
 		return nil, false
 	}
-	ip, err := netip.ParseAddr(m[1])
-	if err != nil {
+	ip, ok := srcIP(m[1])
+	if !ok {
 		return nil, false
 	}
 	at, err := time.Parse("02/Jan/2006:15:04:05 -0700", m[2])
@@ -60,6 +60,13 @@ func Nginx(line string, _ time.Time) (*sentinelv1.Event, bool) {
 	}, true
 }
 
+// srcIP parses a client address. IPv4-mapped IPv6 (::ffff:1.2.3.4) becomes
+// plain IPv4, so one client is one address whatever socket it came in on.
+func srcIP(s string) (netip.Addr, bool) {
+	ip, err := netip.ParseAddr(s)
+	return ip.Unmap(), err == nil
+}
+
 // dash maps Nginx's placeholder for an empty value to an empty string.
 func dash(s string) string {
 	if s == "-" {
@@ -76,7 +83,7 @@ var (
 	// WARNING: the user name is chosen by the client and may contain
 	// " from 1.2.3.4 port 5". The greedy (.*) makes the last "from" win,
 	// which is the one sshd itself wrote. Do not make it lazy.
-	sshFailedRE   = regexp.MustCompile(`^Failed (\S+) for (?:invalid user )?(.*) from (\S+) port (\d+) ssh2$`)
+	sshFailedRE   = regexp.MustCompile(`^Failed (\S+) for (?:invalid user )?(.*) from (\S+) port (\d+) ssh2(?:: .*)?$`)
 	sshAcceptedRE = regexp.MustCompile(`^Accepted (\S+) for (.*) from (\S+) port (\d+) ssh2(?:: .*)?$`)
 	sshInvalidRE  = regexp.MustCompile(`^Invalid user (.*) from (\S+) port (\d+)$`)
 )
@@ -110,8 +117,8 @@ func SSH(line string, now time.Time) (*sentinelv1.Event, bool) {
 		return nil, false
 	}
 
-	addr, err := netip.ParseAddr(ip)
-	if err != nil {
+	addr, ok := srcIP(ip)
+	if !ok {
 		return nil, false
 	}
 	p, err := strconv.ParseUint(port, 10, 16)
