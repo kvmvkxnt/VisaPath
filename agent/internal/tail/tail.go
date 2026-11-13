@@ -22,6 +22,9 @@ const maxLine = 64 << 10
 //
 // NOTE: polling, and no saved offset. Lines written while the agent is down
 // are skipped. A checkpoint file fixes that when it starts to matter.
+// Truncation is seen only while the file is shorter than the read offset:
+// one truncated and refilled past that point within a single poll is read
+// from the old offset. Keep poll short; rename-style rotation has no such gap.
 func Follow(ctx context.Context, path string, poll time.Duration, emit func(line string)) error {
 	t := tailer{emit: emit}
 	defer t.close()
