@@ -1,4 +1,9 @@
 -- Applied on every start, so every statement must be idempotent.
+
+-- CREATE ... IF NOT EXISTS still races when two processes start against an
+-- empty database. The whole file runs as one transaction; this serializes it.
+SELECT pg_advisory_xact_lock(736410001);
+
 CREATE TABLE IF NOT EXISTS events (
     id          bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     time        timestamptz NOT NULL,
