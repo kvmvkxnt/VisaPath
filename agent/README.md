@@ -1,8 +1,8 @@
 # agent
 
 Runs on each monitored host (systemd, not a container, ADR 0004), reads
-logs, turns lines into `Event`s and ships them to `ingest`. Today it has
-the parsers and the file tailer; the shipper comes next.
+logs, turns lines into `Event`s and ships them to `ingest` over gRPC with
+mTLS. Executing approved actions (nftables) comes later.
 
 ## Parsers
 
@@ -28,7 +28,34 @@ and recreate) and truncation (`copytruncate`). Lines longer than 64 KiB
 are dropped. There is no saved offset yet, so lines written while the
 agent is down are skipped.
 
-## Test
+## Shipper
+
+`internal/ship` sends a batch when it reaches 500 events or once a second.
+If ingest is unreachable it retries the same batch with backoff (1s
+doubling to 30s) and stops reading new lines, so the backlog waits in the
+log files, not in memory. A batch ingest rejects as `InvalidArgument` is
+dropped and logged. On SIGTERM it tries once more to flush.
+
+## Configuration
+
+Read from the environment (a systemd `EnvironmentFile` on a real host):
+
+| Key                 | Meaning |
+|---------------------|---------|
+| `AGENT_INGEST_ADDR` | `host:port` of ingest. The host must match the server certificate. |
+| `AGENT_TLS_CERT`    | This host's certificate, PEM. Its common name is the host name ingest records. |
+| `AGENT_TLS_KEY`     | Its private key, PEM. |
+| `AGENT_TLS_CA`      | CA that signed the ingest certificate, PEM. |
+| `AGENT_NGINX_LOG`   | Nginx access log to follow. Optional. |
+| `AGENT_SSH_LOG`     | sshd auth log to follow, e.g. `/var/log/auth.log`. Optional. |
+
+At least one of the two logs must be set.
+
+## Run and test
+
+```sh
+go run ./cmd/sentinel-agent
+```
 
 ```sh
 go test -race ./...
