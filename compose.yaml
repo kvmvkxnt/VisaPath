@@ -1,0 +1,5 @@
+# Entry point so a plain `docker compose up` works from the repo root and
+# reads the root .env. The stack itself is deploy/docker-compose.yml.
+include:
+  - path: deploy/docker-compose.yml
+    env_file: .env

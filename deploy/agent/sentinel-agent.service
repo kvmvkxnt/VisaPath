@@ -1,0 +1,47 @@
+[Unit]
+Description=Sentinel agent: ships this host's logs to sentinel-ingest
+Documentation=https://github.com/kvmvkxnt/sentinel/blob/main/agent/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/sentinel-agent
+EnvironmentFile=/etc/sentinel/agent.env
+Restart=always
+RestartSec=5
+
+# ADR 0004: a dedicated user; log access comes from group membership.
+User=sentinel
+Group=sentinel
+SupplementaryGroups=adm
+
+# NOTE: no capabilities while the agent only reads logs. Executing approved
+# nftables blocks will need CAP_NET_ADMIN here and in AmbientCapabilities,
+# and nothing else.
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
