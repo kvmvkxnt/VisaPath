@@ -23,6 +23,8 @@ message Event {
     NginxAccess nginx = 10;
     // One authentication attempt from the sshd log.
     SshAuth ssh = 11;
+    // One proxied connection from the Xray access log.
+    XrayAccess xray = 12;
   }
 }
 
@@ -68,4 +70,34 @@ message SshAuth {
   string method = 3;
   // Client source port.
   uint32 src_port = 4;
+}
+
+// XrayAccess is one inbound proxy connection as Xray logged it.
+message XrayAccess {
+  // Status is what Xray did with the connection.
+  enum Status {
+    // Unknown; agents never send it.
+    STATUS_UNSPECIFIED = 0;
+    // The client authenticated and the connection was proxied.
+    STATUS_ACCEPTED = 1;
+    // Xray refused the connection, e.g. an unknown user id or a probe.
+    STATUS_REJECTED = 2;
+  }
+
+  // What Xray did with the connection.
+  Status status = 1;
+  // Client source port.
+  uint32 src_port = 2;
+  // Where the client asked to go, as logged, e.g. "tcp:example.com:443".
+  // Chosen by the client. Empty for rejected connections.
+  string destination = 3;
+  // Tag of the inbound that took the connection. Empty when not logged.
+  string inbound = 4;
+  // Tag of the outbound it was routed to. Empty when not logged.
+  string outbound = 5;
+  // Label of the authenticated user, set by the operator. Empty when
+  // absent or rejected.
+  string email = 6;
+  // Why a connection was rejected, as logged. May quote client input.
+  string reason = 7;
 }
