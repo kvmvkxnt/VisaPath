@@ -221,6 +221,38 @@ func TestShipStoresAndPublishesUnderTheCertificateHost(t *testing.T) {
 	}
 }
 
+// Agents unmap already, but ingest does not trust agents: one client must
+// be one address in the table and on the stream, or per-IP counts split.
+func TestShipNormalizesIPv4MappedAddresses(t *testing.T) {
+	f := start(t, "")
+	ctx := context.Background()
+	host := uniqueHost(t)
+	e := sshEvent("")
+	e.SrcIp = "::ffff:203.0.113.7"
+
+	if _, err := f.client(t, f.ca.issue(t, host)).Ship(ctx, &sentinelv1.ShipRequest{
+		Events: []*sentinelv1.Event{e},
+	}); err != nil {
+		t.Fatalf("Ship: %v", err)
+	}
+
+	var stored string
+	if err := f.pg.QueryRow(ctx, "SELECT host(src_ip) FROM events WHERE host = $1", host).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := f.rdb.XRange(ctx, f.stream, "-", "+").Result()
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("stream entries = %d, err = %v", len(entries), err)
+	}
+	var published sentinelv1.Event
+	if err := proto.Unmarshal([]byte(entries[0].Values["pb"].(string)), &published); err != nil {
+		t.Fatal(err)
+	}
+	if stored != "203.0.113.7" || published.GetSrcIp() != "203.0.113.7" {
+		t.Errorf("stored %q, published %q, want 203.0.113.7 in both", stored, published.GetSrcIp())
+	}
+}
+
 func TestShipRejectsBatchesThatCanNeverBeStored(t *testing.T) {
 	f := start(t, "")
 	host := uniqueHost(t)

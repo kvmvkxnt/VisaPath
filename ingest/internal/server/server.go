@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"log/slog"
+	"net/netip"
 
 	"github.com/kvmvkxnt/sentinel/ingest/internal/store"
 	sentinelv1 "github.com/kvmvkxnt/sentinel/proto/gen/go/sentinel/v1"
@@ -70,6 +71,11 @@ func (s *Server) Ship(ctx context.Context, req *sentinelv1.ShipRequest) (*sentin
 		}
 		// The agent's own idea of its name is not trusted.
 		e.Host = host
+		// ::ffff:1.2.3.4 and 1.2.3.4 are one client. An address that does
+		// not parse is left for the store to reject.
+		if ip, err := netip.ParseAddr(e.GetSrcIp()); err == nil {
+			e.SrcIp = ip.Unmap().String()
+		}
 	}
 
 	err = s.store.Insert(ctx, events, func(ctx context.Context) error {
