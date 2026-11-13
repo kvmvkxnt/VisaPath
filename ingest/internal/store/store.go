@@ -101,6 +101,8 @@ func toRow(e *sentinelv1.Event) ([]any, error) {
 		kind, payload = "nginx", p.Nginx
 	case *sentinelv1.Event_Ssh:
 		kind, payload = "ssh", p.Ssh
+	case *sentinelv1.Event_Xray:
+		kind, payload = "xray", p.Xray
 	default:
 		return nil, errors.New("payload is missing or unknown")
 	}
