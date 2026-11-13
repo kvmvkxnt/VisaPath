@@ -106,6 +106,32 @@ func TestInsertStoresBatch(t *testing.T) {
 	}
 }
 
+// A NUL byte is legal in a protobuf string but Postgres refuses it in text
+// and jsonb. One crafted request must not cost the rest of the batch.
+func TestInsertSurvivesNULInLogStrings(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	host := t.Name() + time.Now().Format(time.RFC3339Nano)
+	events := batch(host)
+	events[0].GetNginx().Path = "/a\x00b"
+	events[1].Host = host + "\x00"
+
+	if err := s.Insert(ctx, events, noPublish); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	var path string
+	if err := s.pool.QueryRow(ctx,
+		"SELECT data->>'path' FROM events WHERE host = $1 AND kind = 'nginx'", host).Scan(&path); err != nil {
+		t.Fatal(err)
+	}
+	if path != "/a\ufffdb" {
+		t.Errorf("path = %q, want NUL replaced by U+FFFD", path)
+	}
+	if events[0].GetNginx().Path != "/a\x00b" {
+		t.Error("Insert changed the caller's event")
+	}
+}
+
 func TestInsertRollsBackWhenPublishFails(t *testing.T) {
 	s := open(t)
 	host := t.Name() + time.Now().Format(time.RFC3339Nano)
@@ -129,6 +155,7 @@ func TestInsertRejectsWholeBatchOnBadEvent(t *testing.T) {
 		"bad ip":     func(e *sentinelv1.Event) { e.SrcIp = "not-an-ip" },
 		"no payload": func(e *sentinelv1.Event) { e.Payload = nil },
 		"no time":    func(e *sentinelv1.Event) { e.Time = nil },
+		"bad time":   func(e *sentinelv1.Event) { e.Time = &timestamppb.Timestamp{Seconds: 1 << 60} },
 	} {
 		events := batch(host)
 		breakIt(events[1])
