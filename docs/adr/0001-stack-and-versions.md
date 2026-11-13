@@ -13,7 +13,7 @@ Latest stable of everything, checked against the registries on the date above:
 
 | Component      | Version            | Notes |
 |----------------|--------------------|-------|
-| Go             | 1.27.3             | |
+| Go             | 1.27.4             | |
 | Python         | 3.15.2             | via uv 0.13.7 |
 | Node.js        | 26.13.0 LTS        | |
 | pnpm           | 12.18.0            | |
