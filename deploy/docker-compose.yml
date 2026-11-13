@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg18
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_DB: sentinel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      # Over TCP on purpose: the socket answers during first-start init,
+      # before Postgres accepts the connections other services make.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "sentinel", "-d", "sentinel"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.10.3-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # One-shot: creates the mTLS CA and the ingest certificate on first start.
+  # Also issues agent certificates:
+  #   docker compose run --rm certs agent <host>
+  # NOTE: borrows the Postgres image only because it ships openssl and is
+  # pulled anyway.
+  certs:
+    image: pgvector/pgvector:0.8.7-pg18
+    user: root
+    entrypoint: ["/gen-certs.sh"]
+    command: ["init"]
+    environment:
+      INGEST_SANS: ${INGEST_SANS:-}
+    volumes:
+      - ./gen-certs.sh:/gen-certs.sh:ro
+      - ./certs:/certs
+    restart: "no"
+
+  ingest:
+    build:
+      context: ..
+      dockerfile: ingest/Dockerfile
+    environment:
+      POSTGRES_URL: postgres://sentinel@postgres:5432/sentinel
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      REDIS_URL: redis://redis:6379
+      INGEST_LISTEN: ":8443"
+      INGEST_TLS_CERT: /certs/ingest.pem
+      INGEST_TLS_KEY: /certs/ingest.key
+      INGEST_TLS_CLIENT_CA: /certs/ca.pem
+    volumes:
+      - ./certs:/certs:ro
+    ports:
+      # Agents on monitored hosts connect here. mTLS only.
+      - "8443:8443"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      certs: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "/sentinel-ingest", "healthcheck"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  postgres:
+  redis:

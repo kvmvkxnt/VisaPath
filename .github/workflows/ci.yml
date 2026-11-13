@@ -43,11 +43,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: validate compose
-        if: hashFiles('deploy/docker-compose.yml') != ''
+      - name: validate compose and build images
+        if: hashFiles('compose.yaml') != ''
         run: |
-          [ -f .env.example ] && cp .env.example .env
-          docker compose -f deploy/docker-compose.yml config -q
+          sed 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=ci/' .env.example > .env
+          docker compose config -q
+          docker compose build
 
   proto:
     runs-on: ubuntu-latest
