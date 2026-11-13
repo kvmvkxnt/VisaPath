@@ -16,10 +16,10 @@ cd "$dir"
 
 sign() { # sign <name> <common name> <extensions>
     openssl req -new -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
-        -keyout "$1.key" -out "$1.csr" -subj "/CN=$2" 2>/dev/null
+        -keyout "$1.key" -out "$1.csr" -subj "/CN=$2"
     printf '%s\n' "$3" > "$1.ext"
     openssl x509 -req -in "$1.csr" -CA ca.pem -CAkey ca.key -CAcreateserial \
-        -days "$days" -extfile "$1.ext" -out "$1.pem" 2>/dev/null
+        -days "$days" -extfile "$1.ext" -out "$1.pem"
     rm "$1.csr" "$1.ext"
     chmod 600 "$1.key"
 }
@@ -28,7 +28,7 @@ case ${1:-} in
 init)
     if [ ! -f ca.pem ]; then
         openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes \
-            -keyout ca.key -out ca.pem -days 3650 -subj "/CN=sentinel ca" 2>/dev/null
+            -keyout ca.key -out ca.pem -days 3650 -subj "/CN=sentinel ca"
         chmod 600 ca.key
         echo "created CA"
     fi

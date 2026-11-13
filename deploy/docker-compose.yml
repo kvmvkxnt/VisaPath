@@ -4,11 +4,13 @@ services:
     environment:
       POSTGRES_USER: sentinel
       POSTGRES_DB: sentinel
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "sentinel", "-d", "sentinel"]
+      # Over TCP on purpose: the socket answers during first-start init,
+      # before Postgres accepts the connections other services make.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "sentinel", "-d", "sentinel"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -49,7 +51,7 @@ services:
       dockerfile: ingest/Dockerfile
     environment:
       POSTGRES_URL: postgres://sentinel@postgres:5432/sentinel
-      PGPASSWORD: ${POSTGRES_PASSWORD?set POSTGRES_PASSWORD in .env}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       REDIS_URL: redis://redis:6379
       INGEST_LISTEN: ":8443"
       INGEST_TLS_CERT: /certs/ingest.pem

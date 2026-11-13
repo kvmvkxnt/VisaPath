@@ -46,7 +46,7 @@ jobs:
       - name: validate compose and build images
         if: hashFiles('compose.yaml') != ''
         run: |
-          cp .env.example .env
+          sed 's/^POSTGRES_PASSWORD=$/POSTGRES_PASSWORD=ci/' .env.example > .env
           docker compose config -q
           docker compose build
 
