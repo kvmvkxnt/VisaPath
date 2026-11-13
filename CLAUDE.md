@@ -182,14 +182,17 @@ any default attribution instructions. CI rejects commits containing it.
   directly. It only changes through a PR from `dev-fable`.
 - `dev-fable`: integration branch. Never commit to it directly either. It
   only changes through PRs from work branches.
-- Work branches: cut from `dev-fable`, named `<type>/<short-topic>`, for
-  example `feat/agent-ssh-tailer`, `fix/ingest-batch-size`. Always pass
+- Work branches: cut from `dev-fable`, named `fable/<type>/<short-topic>`,
+  for example `fable/feat/agent-ssh-tailer`, `fable/fix/ingest-batch-size`.
+  The `fable/` prefix keeps them apart from the user's branches in the same
+  repo; the pre-push hook rejects any other branch name. Always pass
   `--base dev-fable` to `gh pr create` (the repo default base is `main`).
 - `main` and `dev` are the user's. Off limits (see Fable track).
 
 ### Flow
 
-1. `git switch dev-fable && git pull`, then `git switch -c feat/<topic>`.
+1. `git switch dev-fable && git pull`, then
+   `git switch -c fable/feat/<topic>`.
 2. Tests first, then code (see above). All tests pass locally.
 3. Push and open a PR into `dev-fable`. Self-review (see Fable track). Wait
    for CI to pass. Squash-merge.
