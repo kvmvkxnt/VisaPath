@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package sentinel.v1;
+
+import "sentinel/v1/event.proto";
+
+// IngestService receives events from agents. It requires mTLS: the client
+// certificate identifies the host.
+service IngestService {
+  // Ship delivers one batch. The batch is stored whole or rejected whole,
+  // so an agent can resend it after any error.
+  rpc Ship(ShipRequest) returns (ShipResponse);
+}
+
+// ShipRequest is one batch of events from a single agent.
+message ShipRequest {
+  // Events in the order the agent read them.
+  repeated Event events = 1;
+}
+
+// ShipResponse acknowledges a stored batch.
+message ShipResponse {}

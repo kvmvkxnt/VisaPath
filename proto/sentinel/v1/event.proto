@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package sentinel.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// Event is one normalized log line from a monitored host.
+//
+// Every string field below is copied from a log line and is therefore
+// attacker-controlled. Consumers must treat it as data: never as
+// instructions to a model, never as SQL, never as a shell argument.
+message Event {
+  // When the log line was written, according to the host that wrote it.
+  google.protobuf.Timestamp time = 1;
+  // Host the event came from. Agents fill it in, but ingest overwrites it
+  // with the name in the agent's mTLS client certificate.
+  string host = 2;
+  // Remote address the activity came from, IPv4 or IPv6 in text form.
+  string src_ip = 3;
+  // What happened, by log source.
+  oneof payload {
+    // One request from the Nginx access log.
+    NginxAccess nginx = 10;
+    // One authentication attempt from the sshd log.
+    SshAuth ssh = 11;
+  }
+}
+
+// NginxAccess is one HTTP request as Nginx logged it.
+message NginxAccess {
+  // Request method, e.g. "GET". Not validated: a scanner can send anything.
+  string method = 1;
+  // Request path with query string, exactly as sent.
+  string path = 2;
+  // Protocol from the request line, e.g. "HTTP/1.1".
+  string protocol = 3;
+  // Response status code.
+  uint32 status = 4;
+  // Response body size in bytes.
+  uint64 bytes_sent = 5;
+  // Referer header, empty when absent.
+  string referer = 6;
+  // User-Agent header, empty when absent.
+  string user_agent = 7;
+}
+
+// SshAuth is one authentication attempt as sshd logged it.
+message SshAuth {
+  // Outcome is how the attempt ended.
+  enum Outcome {
+    // Unknown outcome; agents never send it.
+    OUTCOME_UNSPECIFIED = 0;
+    // Login succeeded.
+    OUTCOME_ACCEPTED = 1;
+    // Wrong credentials for an existing user.
+    OUTCOME_FAILED = 2;
+    // Login attempted for a user that does not exist.
+    OUTCOME_INVALID_USER = 3;
+  }
+
+  // How the attempt ended.
+  Outcome outcome = 1;
+  // User name the client tried to log in as.
+  string user = 2;
+  // Authentication method, e.g. "password" or "publickey". Empty when the
+  // log line does not name one.
+  string method = 3;
+  // Client source port.
+  uint32 src_port = 4;
+}

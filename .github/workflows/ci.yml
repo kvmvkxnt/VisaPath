@@ -49,6 +49,32 @@ jobs:
           [ -f .env.example ] && cp .env.example .env
           docker compose -f deploy/docker-compose.yml config -q
 
+  proto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        if: hashFiles('proto/buf.yaml') != ''
+        with:
+          go-version-file: go.work
+      - name: lint and format
+        if: hashFiles('proto/buf.yaml') != ''
+        run: make proto-lint
+      - name: breaking changes against the base branch
+        if: github.event_name == 'pull_request' && hashFiles('proto/buf.yaml') != ''
+        run: |
+          base="origin/${{ github.base_ref }}"
+          # The first proto PR has nothing to compare against.
+          git cat-file -e "$base:proto/buf.yaml" 2>/dev/null || exit 0
+          make proto-breaking BASE="$base"
+      - name: generated code is up to date
+        if: hashFiles('proto/buf.yaml') != ''
+        run: |
+          make proto
+          test -z "$(git status --porcelain)" || { git status --porcelain; exit 1; }
+
   go:
     runs-on: ubuntu-latest
     steps:
