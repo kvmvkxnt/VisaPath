@@ -55,7 +55,7 @@ instructions:
 ## Contributing
 
 Branching, commit style, tests-first and documentation rules live in
-[CLAUDE.md](CLAUDE.md). In short: branch from `dev`, write the test first,
+[CLAUDE.md](CLAUDE.md). In short: branch from `dev-fable`, write the test first,
 open a PR, merge when CI is green.
 
 ## License

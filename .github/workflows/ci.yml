@@ -2,9 +2,9 @@ name: ci
 
 on:
   pull_request:
-    branches: [main, dev]
+    branches: [main-fable, dev-fable]
   push:
-    branches: [main, dev]
+    branches: [main-fable, dev-fable]
 
 jobs:
   commits:
