@@ -52,9 +52,10 @@ message SshAuth {
     OUTCOME_UNSPECIFIED = 0;
     // Login succeeded.
     OUTCOME_ACCEPTED = 1;
-    // Wrong credentials for an existing user.
+    // One failed credential check, for a real or an unknown user.
     OUTCOME_FAILED = 2;
-    // Login attempted for a user that does not exist.
+    // The client named a user that does not exist. sshd logs this once per
+    // connection, before any OUTCOME_FAILED for the same attempt.
     OUTCOME_INVALID_USER = 3;
   }
 
