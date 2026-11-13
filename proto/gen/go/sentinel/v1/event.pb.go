@@ -30,9 +30,10 @@ const (
 	SshAuth_OUTCOME_UNSPECIFIED SshAuth_Outcome = 0
 	// Login succeeded.
 	SshAuth_OUTCOME_ACCEPTED SshAuth_Outcome = 1
-	// Wrong credentials for an existing user.
+	// One failed credential check, for a real or an unknown user.
 	SshAuth_OUTCOME_FAILED SshAuth_Outcome = 2
-	// Login attempted for a user that does not exist.
+	// The client named a user that does not exist. sshd logs this once per
+	// connection, before any OUTCOME_FAILED for the same attempt.
 	SshAuth_OUTCOME_INVALID_USER SshAuth_Outcome = 3
 )
 
