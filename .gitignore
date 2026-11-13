@@ -10,3 +10,4 @@ node_modules/
 .output/
 HANDOFF.md
 deploy/certs/
+dist/

@@ -51,6 +51,34 @@ Read from the environment (a systemd `EnvironmentFile` on a real host):
 
 At least one of the two logs must be set.
 
+## Install on a host
+
+On the Sentinel server, build the binary and issue the host's certificate:
+
+```sh
+make agent                                  # dist/sentinel-agent-linux-amd64
+docker compose run --rm certs agent web-1   # deploy/certs/agents/web-1.{pem,key}
+```
+
+Copy the binary, `web-1.pem`, `web-1.key`, `deploy/certs/ca.pem` and the
+two files in `deploy/agent/` to the host, then as root there:
+
+```sh
+useradd --system --no-create-home --shell /usr/sbin/nologin sentinel
+install -m 0755 sentinel-agent-linux-amd64 /usr/local/bin/sentinel-agent
+install -d -m 0750 -g sentinel /etc/sentinel
+install -m 0640 -g sentinel web-1.pem /etc/sentinel/agent.pem
+install -m 0640 -g sentinel web-1.key /etc/sentinel/agent.key
+install -m 0640 -g sentinel ca.pem /etc/sentinel/ca.pem
+install -m 0640 -g sentinel agent.env.example /etc/sentinel/agent.env   # then edit
+install -m 0644 sentinel-agent.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now sentinel-agent
+```
+
+The unit runs as the `sentinel` user with no capabilities and a read-only
+view of the system (ADR 0004). It reads logs through the `adm` group,
+which owns `/var/log/auth.log` and the Nginx logs on Debian and Ubuntu.
+
 ## Run and test
 
 ```sh
