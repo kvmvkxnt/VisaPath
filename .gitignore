@@ -9,3 +9,4 @@ node_modules/
 .nuxt/
 .output/
 HANDOFF.md
+deploy/certs/

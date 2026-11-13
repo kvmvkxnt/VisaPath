@@ -4,8 +4,9 @@ Self-hosted security copilot: collects your servers' logs, flags suspicious
 activity with rules and an anomaly model, and lets an AI agent investigate an
 incident and propose a fix that a human approves before it runs.
 
-> Status: pre-alpha. Nothing runs yet. The build plan is in
-> [docs/PLAN.md](docs/PLAN.md).
+> Status: pre-alpha. The event pipeline runs (agent, ingest, Postgres,
+> Redis); detection, the AI investigator and the dashboard do not exist yet.
+> The build plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## How it works
 
@@ -26,6 +27,34 @@ incident and propose a fix that a human approves before it runs.
 3. The investigator agent looks up the IP, related events, CVEs and runbooks,
    writes a summary and proposes an action, for example an nftables block.
 4. A human approves or rejects it in the dashboard. Only then does the agent act.
+
+## Quick start
+
+Needs Docker with Compose, and Go to build the agent.
+
+```sh
+cp .env.example .env          # then set POSTGRES_PASSWORD
+docker compose up -d --wait   # Postgres, Redis, ingest; creates the mTLS CA
+```
+
+The first start writes a private CA and the ingest certificate to
+`deploy/certs/` (git-ignored). Give each monitored host its own
+certificate; its common name is the host name Sentinel records:
+
+```sh
+docker compose run --rm certs agent web-1
+```
+
+Then run the agent on that host with `deploy/certs/agents/web-1.{pem,key}`
+and `deploy/certs/ca.pem`, see [agent/README.md](agent/README.md). If
+agents reach ingest by anything other than `localhost`, put that name or
+address in `INGEST_SANS` before the first start.
+
+Events land in the `events` table:
+
+```sh
+docker compose exec postgres psql -U sentinel -c 'select * from events'
+```
 
 ## Security model
 
