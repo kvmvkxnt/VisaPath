@@ -154,8 +154,9 @@ var (
 	// The source may carry "from " and a "tcp:"/"udp:" prefix, depending on
 	// the Xray version.
 	xrayRE = regexp.MustCompile(`^(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d(?:\.\d+)?) (?:from )?(?:(?:tcp|udp):)?(\S+) (accepted|rejected) +(.*)$`)
-	// Destination, then optionally "[inbound -> outbound]" and "email: x".
-	xrayAcceptedRE = regexp.MustCompile(`^(\S+)(?: \[(\S+) (?:->|>>) (\S+)\])?(?: email: (.*))?$`)
+	// Destination, then optionally "[inbound -> outbound]" (or one tag) and
+	// "email: x".
+	xrayAcceptedRE = regexp.MustCompile(`^(\S+)(?: \[(\S+?)(?: (?:->|>>) (\S+))?\])?(?: email: (.*))?$`)
 )
 
 // Xray parses a line of the Xray access log. Its timestamps have no zone;
@@ -177,12 +178,14 @@ func Xray(line string, now time.Time) (*sentinelv1.Event, bool) {
 	if m[3] == "rejected" {
 		x.Status, x.Reason = sentinelv1.XrayAccess_STATUS_REJECTED, m[4]
 	} else {
-		a := xrayAcceptedRE.FindStringSubmatch(m[4])
-		if a == nil {
-			return nil, false
-		}
 		x.Status = sentinelv1.XrayAccess_STATUS_ACCEPTED
-		x.Destination, x.Inbound, x.Outbound, x.Email = a[1], a[2], a[3], a[4]
+		if a := xrayAcceptedRE.FindStringSubmatch(m[4]); a != nil {
+			x.Destination, x.Inbound, x.Outbound, x.Email = a[1], a[2], a[3], a[4]
+		} else {
+			// A tail from a version this parser does not know: the
+			// connection still counts, with what is certain.
+			x.Destination, _, _ = strings.Cut(m[4], " ")
+		}
 	}
 	return &sentinelv1.Event{
 		Time:    timestamppb.New(at),

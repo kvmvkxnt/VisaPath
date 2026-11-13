@@ -114,6 +114,20 @@ func TestXray(t *testing.T) {
 				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 51234, Destination: "tcp:example.com:443",
 			}),
 		},
+		"single tag in the brackets": {
+			`2026/11/13 10:00:01 from 203.0.113.7:51234 accepted tcp:example.com:443 [direct]`,
+			xray(at, "203.0.113.7", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 51234,
+				Destination: "tcp:example.com:443", Inbound: "direct",
+			}),
+		},
+		// A tail this parser does not know must not cost the connection.
+		"unknown tail keeps the destination": {
+			`2026/11/13 10:00:01 from 203.0.113.7:51234 accepted tcp:example.com:443 something new`,
+			xray(at, "203.0.113.7", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 51234, Destination: "tcp:example.com:443",
+			}),
+		},
 		"rejected": {
 			`2026/11/13 10:00:01 from 203.0.113.7:51234 rejected  proxy/vless/encoding: invalid request user id`,
 			xray(at, "203.0.113.7", &sentinelv1.XrayAccess{
