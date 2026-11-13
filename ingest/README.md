@@ -41,6 +41,14 @@ All required, read from the environment at start:
 
 ## Run and test
 
+`docker compose up` from the repo root runs it with Postgres and Redis.
+The image is built from the repo root (`ingest/Dockerfile`), is `scratch`
+plus the static binary, and runs as uid 65532. `sentinel-ingest
+healthcheck` is the container healthcheck: it checks the listen port.
+In Compose the Postgres password comes from `PGPASSWORD`, not the URL.
+
+Outside Compose:
+
 ```sh
 go run ./cmd/sentinel-ingest
 ```

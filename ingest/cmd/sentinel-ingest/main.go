@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/kvmvkxnt/sentinel/ingest/internal/server"
 	"github.com/kvmvkxnt/sentinel/ingest/internal/store"
@@ -23,6 +24,17 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		// For the container healthcheck: the image has no shell or curl.
+		// NOTE: only proves the port is open, which happens after the
+		// schema is applied. Good enough until there is a status RPC.
+		conn, err := net.DialTimeout("tcp", os.Getenv("INGEST_LISTEN"), 2*time.Second)
+		if err != nil {
+			os.Exit(1)
+		}
+		conn.Close()
+		return
+	}
 	if err := run(); err != nil {
 		slog.Error("sentinel-ingest stopped", "err", err)
 		os.Exit(1)
