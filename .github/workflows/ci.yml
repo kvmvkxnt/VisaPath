@@ -77,6 +77,17 @@ jobs:
 
   go:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg18
+        env:
+          POSTGRES_PASSWORD: test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s
+          --health-timeout 5s --health-retries 15
+    env:
+      SENTINEL_TEST_POSTGRES_URL: postgres://postgres:test@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

@@ -1,3 +1,6 @@
 go 1.27.4
 
-use ./proto/gen/go
+use (
+	./ingest
+	./proto/gen/go
+)
