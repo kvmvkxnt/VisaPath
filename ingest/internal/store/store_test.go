@@ -139,6 +139,29 @@ func TestInsertSurvivesNULInLogStrings(t *testing.T) {
 	}
 }
 
+func TestInsertStoresDockerEventsWithoutAnAddress(t *testing.T) {
+	s := open(t)
+	ctx := context.Background()
+	host := t.Name() + time.Now().Format(time.RFC3339Nano)
+	e := &sentinelv1.Event{
+		Time: timestamppb.Now(), Host: host,
+		Payload: &sentinelv1.Event_Docker{Docker: &sentinelv1.DockerEvent{Action: "die", ContainerName: "web", ExitCode: 137}},
+	}
+
+	if err := s.Insert(ctx, []*sentinelv1.Event{e}, noPublish); err != nil {
+		t.Fatalf("Insert: %v", err)
+	}
+	var kind, name string
+	var noIP bool
+	if err := s.pool.QueryRow(ctx,
+		"SELECT kind, data->>'container_name', src_ip IS NULL FROM events WHERE host = $1", host).Scan(&kind, &name, &noIP); err != nil {
+		t.Fatal(err)
+	}
+	if kind != "docker" || name != "web" || !noIP {
+		t.Errorf("kind = %q, name = %q, src_ip null = %v", kind, name, noIP)
+	}
+}
+
 func TestInsertRollsBackWhenPublishFails(t *testing.T) {
 	s := open(t)
 	host := t.Name() + time.Now().Format(time.RFC3339Nano)
@@ -160,6 +183,7 @@ func TestInsertRejectsWholeBatchOnBadEvent(t *testing.T) {
 
 	for name, breakIt := range map[string]func(*sentinelv1.Event){
 		"bad ip":     func(e *sentinelv1.Event) { e.SrcIp = "not-an-ip" },
+		"no ip":      func(e *sentinelv1.Event) { e.SrcIp = "" },
 		"no payload": func(e *sentinelv1.Event) { e.Payload = nil },
 		"no time":    func(e *sentinelv1.Event) { e.Time = nil },
 		"bad time":   func(e *sentinelv1.Event) { e.Time = &timestamppb.Timestamp{Seconds: 1 << 60} },
