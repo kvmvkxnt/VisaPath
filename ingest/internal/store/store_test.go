@@ -48,6 +48,12 @@ func batch(host string) []*sentinelv1.Event {
 				Outcome: sentinelv1.SshAuth_OUTCOME_FAILED, User: "root",
 			}},
 		},
+		{
+			Time: at, Host: host, SrcIp: "203.0.113.9",
+			Payload: &sentinelv1.Event_Xray{Xray: &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_REJECTED, Reason: "invalid request user id",
+			}},
+		},
 	}
 }
 
@@ -71,7 +77,7 @@ func TestInsertStoresBatch(t *testing.T) {
 	}
 
 	rows, err := s.pool.Query(ctx,
-		`SELECT kind, host(src_ip), time, coalesce(data->>'path', data->>'user')
+		`SELECT kind, host(src_ip), time, coalesce(data->>'path', data->>'user', data->>'reason')
 		 FROM events WHERE host = $1 ORDER BY id`, host)
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +100,7 @@ func TestInsertStoresBatch(t *testing.T) {
 	want := []row{
 		{"nginx", "203.0.113.7", at, "/wp-login.php"},
 		{"ssh", "2001:db8::1", at, "root"},
+		{"xray", "203.0.113.9", at, "invalid request user id"},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %d rows, want %d", len(got), len(want))

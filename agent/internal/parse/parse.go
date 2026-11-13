@@ -149,3 +149,47 @@ func syslogTime(s string, now time.Time) (time.Time, bool) {
 	}
 	return at, true
 }
+
+var (
+	// The source may carry "from " and a "tcp:"/"udp:" prefix, depending on
+	// the Xray version.
+	xrayRE = regexp.MustCompile(`^(\d{4}/\d\d/\d\d \d\d:\d\d:\d\d(?:\.\d+)?) (?:from )?(?:(?:tcp|udp):)?(\S+) (accepted|rejected) +(.*)$`)
+	// Destination, then optionally "[inbound -> outbound]" (or one tag) and
+	// "email: x".
+	xrayAcceptedRE = regexp.MustCompile(`^(\S+)(?: \[(\S+?)(?: (?:->|>>) (\S+))?\])?(?: email: (.*))?$`)
+)
+
+// Xray parses a line of the Xray access log. Its timestamps have no zone;
+// the host's zone is assumed.
+func Xray(line string, now time.Time) (*sentinelv1.Event, bool) {
+	m := xrayRE.FindStringSubmatch(line)
+	if m == nil {
+		return nil, false
+	}
+	at, err := time.ParseInLocation("2006/01/02 15:04:05", m[1], now.Location())
+	if err != nil {
+		return nil, false
+	}
+	src, err := netip.ParseAddrPort(m[2])
+	if err != nil {
+		return nil, false
+	}
+	x := &sentinelv1.XrayAccess{SrcPort: uint32(src.Port())}
+	if m[3] == "rejected" {
+		x.Status, x.Reason = sentinelv1.XrayAccess_STATUS_REJECTED, m[4]
+	} else {
+		x.Status = sentinelv1.XrayAccess_STATUS_ACCEPTED
+		if a := xrayAcceptedRE.FindStringSubmatch(m[4]); a != nil {
+			x.Destination, x.Inbound, x.Outbound, x.Email = a[1], a[2], a[3], a[4]
+		} else {
+			// A tail from a version this parser does not know: the
+			// connection still counts, with what is certain.
+			x.Destination, _, _ = strings.Cut(m[4], " ")
+		}
+	}
+	return &sentinelv1.Event{
+		Time:    timestamppb.New(at),
+		SrcIp:   src.Addr().Unmap().String(),
+		Payload: &sentinelv1.Event_Xray{Xray: x},
+	}, true
+}

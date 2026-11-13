@@ -80,6 +80,59 @@ func (SshAuth_Outcome) EnumDescriptor() ([]byte, []int) {
 	return file_sentinel_v1_event_proto_rawDescGZIP(), []int{2, 0}
 }
 
+// Status is what Xray did with the connection.
+type XrayAccess_Status int32
+
+const (
+	// Unknown; agents never send it.
+	XrayAccess_STATUS_UNSPECIFIED XrayAccess_Status = 0
+	// The client authenticated and the connection was proxied.
+	XrayAccess_STATUS_ACCEPTED XrayAccess_Status = 1
+	// Xray refused the connection, e.g. an unknown user id or a probe.
+	XrayAccess_STATUS_REJECTED XrayAccess_Status = 2
+)
+
+// Enum value maps for XrayAccess_Status.
+var (
+	XrayAccess_Status_name = map[int32]string{
+		0: "STATUS_UNSPECIFIED",
+		1: "STATUS_ACCEPTED",
+		2: "STATUS_REJECTED",
+	}
+	XrayAccess_Status_value = map[string]int32{
+		"STATUS_UNSPECIFIED": 0,
+		"STATUS_ACCEPTED":    1,
+		"STATUS_REJECTED":    2,
+	}
+)
+
+func (x XrayAccess_Status) Enum() *XrayAccess_Status {
+	p := new(XrayAccess_Status)
+	*p = x
+	return p
+}
+
+func (x XrayAccess_Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (XrayAccess_Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_sentinel_v1_event_proto_enumTypes[1].Descriptor()
+}
+
+func (XrayAccess_Status) Type() protoreflect.EnumType {
+	return &file_sentinel_v1_event_proto_enumTypes[1]
+}
+
+func (x XrayAccess_Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use XrayAccess_Status.Descriptor instead.
+func (XrayAccess_Status) EnumDescriptor() ([]byte, []int) {
+	return file_sentinel_v1_event_proto_rawDescGZIP(), []int{3, 0}
+}
+
 // Event is one normalized log line from a monitored host.
 //
 // Every string field below is copied from a log line and is therefore
@@ -100,6 +153,7 @@ type Event struct {
 	//
 	//	*Event_Nginx
 	//	*Event_Ssh
+	//	*Event_Xray
 	Payload       isEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -181,6 +235,15 @@ func (x *Event) GetSsh() *SshAuth {
 	return nil
 }
 
+func (x *Event) GetXray() *XrayAccess {
+	if x != nil {
+		if x, ok := x.Payload.(*Event_Xray); ok {
+			return x.Xray
+		}
+	}
+	return nil
+}
+
 type isEvent_Payload interface {
 	isEvent_Payload()
 }
@@ -195,9 +258,16 @@ type Event_Ssh struct {
 	Ssh *SshAuth `protobuf:"bytes,11,opt,name=ssh,proto3,oneof"`
 }
 
+type Event_Xray struct {
+	// One proxied connection from the Xray access log.
+	Xray *XrayAccess `protobuf:"bytes,12,opt,name=xray,proto3,oneof"`
+}
+
 func (*Event_Nginx) isEvent_Payload() {}
 
 func (*Event_Ssh) isEvent_Payload() {}
+
+func (*Event_Xray) isEvent_Payload() {}
 
 // NginxAccess is one HTTP request as Nginx logged it.
 type NginxAccess struct {
@@ -373,18 +443,121 @@ func (x *SshAuth) GetSrcPort() uint32 {
 	return 0
 }
 
+// XrayAccess is one inbound proxy connection as Xray logged it.
+type XrayAccess struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What Xray did with the connection.
+	Status XrayAccess_Status `protobuf:"varint,1,opt,name=status,proto3,enum=sentinel.v1.XrayAccess_Status" json:"status,omitempty"`
+	// Client source port.
+	SrcPort uint32 `protobuf:"varint,2,opt,name=src_port,json=srcPort,proto3" json:"src_port,omitempty"`
+	// Where the client asked to go, as logged, e.g. "tcp:example.com:443".
+	// Chosen by the client. Empty for rejected connections.
+	Destination string `protobuf:"bytes,3,opt,name=destination,proto3" json:"destination,omitempty"`
+	// Tag of the inbound that took the connection. Empty when not logged.
+	Inbound string `protobuf:"bytes,4,opt,name=inbound,proto3" json:"inbound,omitempty"`
+	// Tag of the outbound it was routed to. Empty when not logged.
+	Outbound string `protobuf:"bytes,5,opt,name=outbound,proto3" json:"outbound,omitempty"`
+	// Label of the authenticated user, set by the operator. Empty when
+	// absent or rejected.
+	Email string `protobuf:"bytes,6,opt,name=email,proto3" json:"email,omitempty"`
+	// Why a connection was rejected, as logged. May quote client input.
+	Reason        string `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *XrayAccess) Reset() {
+	*x = XrayAccess{}
+	mi := &file_sentinel_v1_event_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *XrayAccess) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*XrayAccess) ProtoMessage() {}
+
+func (x *XrayAccess) ProtoReflect() protoreflect.Message {
+	mi := &file_sentinel_v1_event_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use XrayAccess.ProtoReflect.Descriptor instead.
+func (*XrayAccess) Descriptor() ([]byte, []int) {
+	return file_sentinel_v1_event_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *XrayAccess) GetStatus() XrayAccess_Status {
+	if x != nil {
+		return x.Status
+	}
+	return XrayAccess_STATUS_UNSPECIFIED
+}
+
+func (x *XrayAccess) GetSrcPort() uint32 {
+	if x != nil {
+		return x.SrcPort
+	}
+	return 0
+}
+
+func (x *XrayAccess) GetDestination() string {
+	if x != nil {
+		return x.Destination
+	}
+	return ""
+}
+
+func (x *XrayAccess) GetInbound() string {
+	if x != nil {
+		return x.Inbound
+	}
+	return ""
+}
+
+func (x *XrayAccess) GetOutbound() string {
+	if x != nil {
+		return x.Outbound
+	}
+	return ""
+}
+
+func (x *XrayAccess) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *XrayAccess) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_sentinel_v1_event_proto protoreflect.FileDescriptor
 
 const file_sentinel_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x17sentinel/v1/event.proto\x12\vsentinel.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc9\x01\n" +
+	"\x17sentinel/v1/event.proto\x12\vsentinel.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf8\x01\n" +
 	"\x05Event\x12.\n" +
 	"\x04time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x15\n" +
 	"\x06src_ip\x18\x03 \x01(\tR\x05srcIp\x120\n" +
 	"\x05nginx\x18\n" +
 	" \x01(\v2\x18.sentinel.v1.NginxAccessH\x00R\x05nginx\x12(\n" +
-	"\x03ssh\x18\v \x01(\v2\x14.sentinel.v1.SshAuthH\x00R\x03sshB\t\n" +
+	"\x03ssh\x18\v \x01(\v2\x14.sentinel.v1.SshAuthH\x00R\x03ssh\x12-\n" +
+	"\x04xray\x18\f \x01(\v2\x17.sentinel.v1.XrayAccessH\x00R\x04xrayB\t\n" +
 	"\apayload\"\xc5\x01\n" +
 	"\vNginxAccess\x12\x16\n" +
 	"\x06method\x18\x01 \x01(\tR\x06method\x12\x12\n" +
@@ -405,7 +578,20 @@ const file_sentinel_v1_event_proto_rawDesc = "" +
 	"\x13OUTCOME_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10OUTCOME_ACCEPTED\x10\x01\x12\x12\n" +
 	"\x0eOUTCOME_FAILED\x10\x02\x12\x18\n" +
-	"\x14OUTCOME_INVALID_USER\x10\x03B\xac\x01\n" +
+	"\x14OUTCOME_INVALID_USER\x10\x03\"\xb1\x02\n" +
+	"\n" +
+	"XrayAccess\x126\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1e.sentinel.v1.XrayAccess.StatusR\x06status\x12\x19\n" +
+	"\bsrc_port\x18\x02 \x01(\rR\asrcPort\x12 \n" +
+	"\vdestination\x18\x03 \x01(\tR\vdestination\x12\x18\n" +
+	"\ainbound\x18\x04 \x01(\tR\ainbound\x12\x1a\n" +
+	"\boutbound\x18\x05 \x01(\tR\boutbound\x12\x14\n" +
+	"\x05email\x18\x06 \x01(\tR\x05email\x12\x16\n" +
+	"\x06reason\x18\a \x01(\tR\x06reason\"J\n" +
+	"\x06Status\x12\x16\n" +
+	"\x12STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fSTATUS_ACCEPTED\x10\x01\x12\x13\n" +
+	"\x0fSTATUS_REJECTED\x10\x02B\xac\x01\n" +
 	"\x0fcom.sentinel.v1B\n" +
 	"EventProtoP\x01Z@github.com/kvmvkxnt/sentinel/proto/gen/go/sentinel/v1;sentinelv1\xa2\x02\x03SXX\xaa\x02\vSentinel.V1\xca\x02\vSentinel\\V1\xe2\x02\x17Sentinel\\V1\\GPBMetadata\xea\x02\fSentinel::V1b\x06proto3"
 
@@ -421,25 +607,29 @@ func file_sentinel_v1_event_proto_rawDescGZIP() []byte {
 	return file_sentinel_v1_event_proto_rawDescData
 }
 
-var file_sentinel_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_sentinel_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_sentinel_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_sentinel_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_sentinel_v1_event_proto_goTypes = []any{
 	(SshAuth_Outcome)(0),          // 0: sentinel.v1.SshAuth.Outcome
-	(*Event)(nil),                 // 1: sentinel.v1.Event
-	(*NginxAccess)(nil),           // 2: sentinel.v1.NginxAccess
-	(*SshAuth)(nil),               // 3: sentinel.v1.SshAuth
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(XrayAccess_Status)(0),        // 1: sentinel.v1.XrayAccess.Status
+	(*Event)(nil),                 // 2: sentinel.v1.Event
+	(*NginxAccess)(nil),           // 3: sentinel.v1.NginxAccess
+	(*SshAuth)(nil),               // 4: sentinel.v1.SshAuth
+	(*XrayAccess)(nil),            // 5: sentinel.v1.XrayAccess
+	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
 }
 var file_sentinel_v1_event_proto_depIdxs = []int32{
-	4, // 0: sentinel.v1.Event.time:type_name -> google.protobuf.Timestamp
-	2, // 1: sentinel.v1.Event.nginx:type_name -> sentinel.v1.NginxAccess
-	3, // 2: sentinel.v1.Event.ssh:type_name -> sentinel.v1.SshAuth
-	0, // 3: sentinel.v1.SshAuth.outcome:type_name -> sentinel.v1.SshAuth.Outcome
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 0: sentinel.v1.Event.time:type_name -> google.protobuf.Timestamp
+	3, // 1: sentinel.v1.Event.nginx:type_name -> sentinel.v1.NginxAccess
+	4, // 2: sentinel.v1.Event.ssh:type_name -> sentinel.v1.SshAuth
+	5, // 3: sentinel.v1.Event.xray:type_name -> sentinel.v1.XrayAccess
+	0, // 4: sentinel.v1.SshAuth.outcome:type_name -> sentinel.v1.SshAuth.Outcome
+	1, // 5: sentinel.v1.XrayAccess.status:type_name -> sentinel.v1.XrayAccess.Status
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_sentinel_v1_event_proto_init() }
@@ -450,14 +640,15 @@ func file_sentinel_v1_event_proto_init() {
 	file_sentinel_v1_event_proto_msgTypes[0].OneofWrappers = []any{
 		(*Event_Nginx)(nil),
 		(*Event_Ssh)(nil),
+		(*Event_Xray)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_sentinel_v1_event_proto_rawDesc), len(file_sentinel_v1_event_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   3,
+			NumEnums:      2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

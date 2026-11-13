@@ -13,6 +13,7 @@ lines that are not an event.
 |---------|-------|-------|
 | `Nginx` | access log, `combined` format | Request lines that are not `METHOD PATH PROTOCOL` are kept whole in `path`. |
 | `SSH`   | sshd lines in `/var/log/auth.log` | Classic and RFC 3339 syslog timestamps, `sshd` and `sshd-session` tags. |
+| `Xray`  | Xray access log | Accepted and rejected connections, with or without the `from` and `tcp:` prefixes. Timestamps are taken in the host's zone. |
 
 Log text is attacker-controlled. The SSH parser takes the address from the
 end of the line, because the user name in the middle is chosen by the
@@ -48,8 +49,9 @@ Read from the environment (a systemd `EnvironmentFile` on a real host):
 | `AGENT_TLS_CA`      | CA that signed the ingest certificate, PEM. |
 | `AGENT_NGINX_LOG`   | Nginx access log to follow. Optional. |
 | `AGENT_SSH_LOG`     | sshd auth log to follow, e.g. `/var/log/auth.log`. Optional. |
+| `AGENT_XRAY_LOG`    | Xray access log to follow, e.g. `/var/log/xray/access.log`. Optional. |
 
-At least one of the two logs must be set.
+At least one log must be set.
 
 ## Install on a host
 

@@ -85,6 +85,63 @@ func TestNginx(t *testing.T) {
 	})
 }
 
+func TestXray(t *testing.T) {
+	at := time.Date(2026, 11, 13, 10, 0, 1, 0, time.UTC)
+	xray := func(at time.Time, ip string, x *sentinelv1.XrayAccess) *sentinelv1.Event {
+		return &sentinelv1.Event{Time: timestamppb.New(at), SrcIp: ip, Payload: &sentinelv1.Event_Xray{Xray: x}}
+	}
+	check(t, Xray, map[string]struct {
+		line string
+		want *sentinelv1.Event
+	}{
+		"accepted": {
+			`2026/11/13 10:00:01.123456 from 203.0.113.7:51234 accepted tcp:example.com:443 [vless-in -> direct] email: alice@example.com`,
+			xray(at.Add(123456*time.Microsecond), "203.0.113.7", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 51234,
+				Destination: "tcp:example.com:443", Inbound: "vless-in", Outbound: "direct", Email: "alice@example.com",
+			}),
+		},
+		"older format: no from, >> arrow, no email, ipv6": {
+			`2026/11/13 10:00:01 [2001:db8::1]:40022 accepted udp:1.1.1.1:53 [in >> out]`,
+			xray(at, "2001:db8::1", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 40022,
+				Destination: "udp:1.1.1.1:53", Inbound: "in", Outbound: "out",
+			}),
+		},
+		"network prefix on the source": {
+			`2026/11/13 10:00:01 from tcp:203.0.113.7:51234 accepted tcp:example.com:443`,
+			xray(at, "203.0.113.7", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 51234, Destination: "tcp:example.com:443",
+			}),
+		},
+		"single tag in the brackets": {
+			`2026/11/13 10:00:01 from 203.0.113.7:51234 accepted tcp:example.com:443 [direct]`,
+			xray(at, "203.0.113.7", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 51234,
+				Destination: "tcp:example.com:443", Inbound: "direct",
+			}),
+		},
+		// A tail this parser does not know must not cost the connection.
+		"unknown tail keeps the destination": {
+			`2026/11/13 10:00:01 from 203.0.113.7:51234 accepted tcp:example.com:443 something new`,
+			xray(at, "203.0.113.7", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_ACCEPTED, SrcPort: 51234, Destination: "tcp:example.com:443",
+			}),
+		},
+		"rejected": {
+			`2026/11/13 10:00:01 from 203.0.113.7:51234 rejected  proxy/vless/encoding: invalid request user id`,
+			xray(at, "203.0.113.7", &sentinelv1.XrayAccess{
+				Status: sentinelv1.XrayAccess_STATUS_REJECTED, SrcPort: 51234,
+				Reason: "proxy/vless/encoding: invalid request user id",
+			}),
+		},
+		"unix socket peer": {`2026/11/13 10:00:01 from @ accepted tcp:example.com:443`, nil},
+		"error log line":   {`2026/11/13 10:00:01 [Warning] core: Xray 26.1.0 started`, nil},
+		"bad time":         {`2026/13/45 10:00:01 from 203.0.113.7:51234 accepted tcp:example.com:443`, nil},
+		"empty":            {``, nil},
+	})
+}
+
 func TestSSH(t *testing.T) {
 	at := time.Date(2026, 11, 13, 10, 0, 1, 0, time.UTC)
 	failed := func(user string) *sentinelv1.Event {

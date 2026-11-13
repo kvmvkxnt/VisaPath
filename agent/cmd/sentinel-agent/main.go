@@ -56,8 +56,11 @@ func run() error {
 	if p := os.Getenv("AGENT_SSH_LOG"); p != "" {
 		logs[p] = parse.SSH
 	}
+	if p := os.Getenv("AGENT_XRAY_LOG"); p != "" {
+		logs[p] = parse.Xray
+	}
 	if len(logs) == 0 {
-		return errors.New("set AGENT_NGINX_LOG or AGENT_SSH_LOG")
+		return errors.New("set at least one of AGENT_NGINX_LOG, AGENT_SSH_LOG, AGENT_XRAY_LOG")
 	}
 
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
